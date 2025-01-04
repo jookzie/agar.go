@@ -1,0 +1,6 @@
+*
+!*.json
+!*.ts
+!src
+!index.html
+!.env*

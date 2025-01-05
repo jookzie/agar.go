@@ -9,4 +9,6 @@ services:
       context: ./client
     ports:
       - "80:80"
+    logging:
+      driver: none
 

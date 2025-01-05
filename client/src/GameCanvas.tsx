@@ -25,6 +25,7 @@ const GameCanvas: React.FC = () => {
 	const [clientUid, setClientUid] = useState<string | null>(null);
 	const [clientConfig, setClientConfig] = useState<Config | null>(null);
 	const [clientPlayers, setClientPlayers] = useState<Record<string, Player>>({});
+	const [clientFeedmap, setClientFeedmap] = useState<Array<int, int>>(null);
 	const [moveX, setMoveX] = useState(0);
 	const [moveY, setMoveY] = useState(0);
 
@@ -45,7 +46,7 @@ const GameCanvas: React.FC = () => {
 
 	const getRoundedInterval = () => {
 		const now = Date.now();
-		const value =  Math.floor(now / FPS_INTERVAL) * FPS_INTERVAL;
+		const value = Math.floor(now / FPS_INTERVAL) * FPS_INTERVAL;
 		return value;
 	};
 
@@ -56,10 +57,16 @@ const GameCanvas: React.FC = () => {
 		context.fill();
 
 		context.lineWidth = Math.PI;
-
 		context.strokeStyle = darkenColor(color, 30);
 		context.stroke();
 		context.lineWidth = 1;
+	};
+
+	const drawFeedCircle = (context: CanvasRenderingContext2D, x, y, xOffset, yOffset) => {
+		context.beginPath();
+		context.arc(x + xOffset, y + yOffset, 10, 0, 2 * Math.PI, false);
+		context.fillStyle = '#' + (((x + y) * 1234567) & 0xFFFFFF).toString(16).padStart(6, '0')
+		context.fill();
 	};
 
 	function darkenColor(color: string, percent: number): string {
@@ -130,29 +137,39 @@ const GameCanvas: React.FC = () => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 		const context = canvas.getContext('2d');
-		if (!context || !clientUid || !clientConfig) return;
+		if (!context || !clientUid || !clientConfig || !clientFeedmap) return;
 
 		context.clearRect(0, 0, canvas.width, canvas.height);
 
-		const clientPlayer = clientPlayers[clientUid];
-		if (!clientPlayer) return;
+		const player = clientPlayers[clientUid];
+		if (!player) return;
 
-		const xOffset = canvas.width / 2 - clientPlayer.x;
-		const yOffset = canvas.height / 2 - clientPlayer.y;
+		const xOffset = canvas.width / 2 - player.x;
+		const yOffset = canvas.height / 2 - player.y;
 
-		drawGrid(context, clientPlayer.x, clientPlayer.y);
+		drawGrid(context, player.x, player.y);
+
+		clientFeedmap.forEach((point: Array<int>) => {
+			drawFeedCircle(
+				context,
+				point[0], 
+				point[1],
+				xOffset,
+				yOffset,
+			)
+		});
 
 		Object.keys(clientPlayers).forEach((uid) => {
-			const player = clientPlayers[uid];
+			const clientPlayer = clientPlayers[uid];
 			drawCircle(context, {
-				...player,
-				x: player.x + xOffset,
-				y: player.y + yOffset,
+				...clientPlayer,
+				x: clientPlayer.x + xOffset,
+				y: clientPlayer.y + yOffset,
 			});
 		});
 
-		drawDebugger(context, clientPlayer);
-	}, [clientPlayers, clientUid, clientConfig]);
+		drawDebugger(context, player);
+	}, [clientPlayers, clientUid, clientConfig, clientFeedmap]);
 
 	const updatePlayer = useCallback(() => {
 		if (!clientUid || !clientConfig) return;
@@ -203,10 +220,12 @@ const GameCanvas: React.FC = () => {
 				setClientUid(data.uid);
 				setClientConfig(data.config);
 				setClientPlayers(data.players);
+				setClientFeedmap(data.feedmap);
 			}
 
 			if (data.action === 'sync') {
 				setClientPlayers(data.players);
+				setClientFeedmap(prev => data.feedmap || prev);
 			}
 		};
 

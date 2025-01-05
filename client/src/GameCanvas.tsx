@@ -18,7 +18,7 @@ interface Config {
 }
 
 const SECOND = 1000;
-const FPS = 120;
+const FPS = 240;
 const FPS_INTERVAL = Math.floor(SECOND / FPS);
 
 const GameCanvas: React.FC = () => {

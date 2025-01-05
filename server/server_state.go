@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+	
+	"github.com/gorilla/websocket"
 )
 
 type Player struct {
@@ -13,18 +15,19 @@ type Player struct {
 	MoveY      float64 `json:"moveY"`
 	Speed      float64 `json:"speed"`
 	ClientTime int64   `json:"clientTime"`
+	Connection *websocket.Conn
 }
 
 type ServerConfig struct {
-	MaxX        float64 `json:"maxX"`
-	MaxY        float64 `json:"maxY"`
-	FeedMapSize int     `json:"feedmapsize"`
+	MaxX        int `json:"maxX"`
+	MaxY        int `json:"maxY"`
+	FeedMapSize int `json:"feedmapsize"`
 }
 
 type ServerState struct {
 	Config  ServerConfig       `json:"config"`
 	Players map[string]*Player `json:"players"`
-	FeedMap [][2]float64       `json:"feedmap"`
+	FeedMap [][2]int           `json:"feedmap"`
 	mu      sync.Mutex
 }
 
@@ -44,6 +47,6 @@ var config ServerConfig = ServerConfig{
 var state = ServerState{
 	Config: config,
 	Players: make(map[string]*Player),
-	FeedMap: GeneratePoints(config.FeedMapSize, config.MaxX, config.MaxY),
+	FeedMap: GeneratePoints(config.FeedMapSize, int(config.MaxX), int(config.MaxY)),
 }
 

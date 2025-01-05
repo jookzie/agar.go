@@ -28,11 +28,12 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 
 	uid := uuid.New().String()
 	player := &Player{
-		X:      rand.Float64() * state.Config.MaxX,
-		Y:      rand.Float64() * state.Config.MaxY,
+		X:      rand.Float64() * float64(state.Config.MaxX),
+		Y:      rand.Float64() * float64(state.Config.MaxY),
 		Radius: 20,
 		Color:  RandomColor(),
-		Speed:  20,
+		Speed:  10,
+		Connection: conn,
 	}
 	state.mu.Lock()
 	state.Players[uid] = player
@@ -68,41 +69,50 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 			break
 		}
 
+		message := map[string]interface{}{
+			"action":  "sync",
+			"uid": uid,
+		}
+
 		state.mu.Lock()
 		player := state.Players[uid]
+
 		if player != nil {
 			player.MoveX = msg.MoveX
 			player.MoveY = msg.MoveY
 			player.ClientTime = msg.ClientTime
 			player.X += player.MoveX * player.Speed
 			player.Y += player.MoveY * player.Speed
-			player.X = Clamp(player.X, 0, state.Config.MaxX)
-			player.Y = Clamp(player.Y, 0, state.Config.MaxY)
-		}
+			player.X = Clamp(player.X, 0, float64(state.Config.MaxX))
+			player.Y = Clamp(player.Y, 0, float64(state.Config.MaxY))
 
-		var eatenPoints [][2]float64 = FilterPointsInCircle(player.X, player.Y, player.Radius, state.FeedMap)
-		if len(eatenPoints) != 0 {
-			state.FeedMap = SubtractArrays(state.FeedMap, eatenPoints);
-			player.Radius += float64(len(eatenPoints));
-			state.FeedMap = append(state.FeedMap, GeneratePoints(len(eatenPoints), state.Config.MaxX, state.Config.MaxY)...)
-		}
 
+			for idx, point := range state.FeedMap {
+				if IsPointInCircle(player.X, player.Y, player.Radius, point[0], point[1]) {
+					player.Radius += 1
+					state.FeedMap = append(state.FeedMap[:idx], state.FeedMap[idx+1:]...)
+					message["eatenPoint"] = point
+
+					addedPoint := GeneratePoints(1, state.Config.MaxX, state.Config.MaxY)
+					state.FeedMap = append(state.FeedMap, addedPoint[0])
+					message["addedPoint"] = addedPoint
+					break
+				}
+			}
+
+			for otherUid, other := range state.Players {
+				if otherUid != uid && IsCircleInCircle(player.X, player.Y, player.Radius, other.X, other.Y, other.Radius) {
+					player.Radius += state.Players[otherUid].Radius - 20
+					wss.RemoveClient(state.Players[otherUid].Connection)
+					delete(state.Players, otherUid)
+					message["eatenPlayer"] = otherUid
+					break
+				}
+			}
+
+			message["player"] = player;
+		}
 		state.mu.Unlock()
-
-		var message map[string]interface{}
-
-		if len(eatenPoints) == 0 {
-			message = map[string]interface{}{
-				"action":  "sync",
-				"players": state.Players,
-			}
-		} else {
-			message = map[string]interface{}{
-				"action":  "sync",
-				"players": state.Players,
-				"feedmap": state.FeedMap,
-			}
-		}
 
 		wss.BroadcastMessage(message)
 	}

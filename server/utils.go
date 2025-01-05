@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-func GeneratePoints(size int, maxX, maxY float64) [][2]float64 {
+func GeneratePoints(size, maxX, maxY int) [][2]int {
 	rand.Seed(time.Now().UnixNano())
-	points := make([][2]float64, size)
+	points := make([][2]int, size)
 
 	for i := 0; i < size; i++ {
-		points[i][0] = rand.Float64() * maxX
-		points[i][1] = rand.Float64() * maxY
+		points[i][0] = rand.Intn(maxX)
+		points[i][1] = rand.Intn(maxY)
 	}
 
 	return points;
@@ -40,28 +40,21 @@ func Clamp(value, min, max float64) float64 {
 }
 
 // Function to check if a point (px, py) is inside a circle with center (cx, cy) and radius r
-func IsPointInCircle(cx, cy, r, px, py float64) bool {
+func IsPointInCircle(cx, cy, r float64, px, py int) bool {
 	// Calculate the distance from the point (px, py) to the center (cx, cy)
-	distance := math.Sqrt(math.Pow(px-cx, 2) + math.Pow(py-cy, 2))
+	distance := math.Sqrt(math.Pow(float64(px)-cx, 2) + math.Pow(float64(py)-cy, 2))
 	
 	// Check if the distance is less than or equal to the radius
 	return distance <= r
 }
 
-// Function to filter points that are inside a circle
-func FilterPointsInCircle(cx, cy, r float64, points [][2]float64) [][2]float64 {
-	var result [][2]float64
+// Function to check if Circle A (center cxA, cyA, radius rA) includes Circle B (center cxB, cyB, radius rB)
+func IsCircleInCircle(cxA, cyA, rA, cxB, cyB, rB float64) bool {
+	// Calculate the distance between the centers of Circle A and Circle B
+	distance := math.Sqrt(math.Pow(cxA-cxB, 2) + math.Pow(cyA-cyB, 2))
 	
-	// Iterate over the array of points
-	for _, point := range points {
-		px, py := point[0], point[1]
-		// If the point is inside the circle, add it to the result
-		if IsPointInCircle(cx, cy, r, px, py) {
-			result = append(result, point)
-		}
-	}
-	
-	return result
+	// Check if the distance + radius of Circle B is less than or equal to radius of Circle A
+	return distance + rB <= rA
 }
 
 

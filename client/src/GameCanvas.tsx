@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import clone from 'just-clone';
 
 interface Player {
 	x: number;
@@ -25,7 +26,7 @@ const GameCanvas: React.FC = () => {
 	const [clientUid, setClientUid] = useState<string | null>(null);
 	const [clientConfig, setClientConfig] = useState<Config | null>(null);
 	const [clientPlayers, setClientPlayers] = useState<Record<string, Player>>({});
-	const [clientFeedmap, setClientFeedmap] = useState<Array<int, int>>(null);
+	const [clientFeedmap, setClientFeedmap] = useState<Array<int, int>>([]);
 	const [moveX, setMoveX] = useState(0);
 	const [moveY, setMoveY] = useState(0);
 
@@ -53,11 +54,11 @@ const GameCanvas: React.FC = () => {
 	const drawCircle = (context: CanvasRenderingContext2D, { x, y, radius, color }: Player) => {
 		context.beginPath();
 		context.arc(x, y, radius, 0, 2 * Math.PI, false);
-		context.fillStyle = color;
+		context.fillStyle = color || "black";
 		context.fill();
 
 		context.lineWidth = Math.PI;
-		context.strokeStyle = darkenColor(color, 30);
+		context.strokeStyle = darkenColor(color || "black", 30);
 		context.stroke();
 		context.lineWidth = 1;
 	};
@@ -70,11 +71,6 @@ const GameCanvas: React.FC = () => {
 	};
 
 	function darkenColor(color: string, percent: number): string {
-		// Validate the input color
-		if (!/^#([0-9A-Fa-f]{6})$/.test(color)) {
-			throw new Error("Invalid color format. Expected #RRGGBB.");
-		}
-
 		// Parse the red, green, and blue components from the color
 		const r = parseInt(color.slice(1, 3), 16);
 		const g = parseInt(color.slice(3, 5), 16);
@@ -116,11 +112,16 @@ const GameCanvas: React.FC = () => {
 	};
 
 	const drawDebugger = (context: CanvasRenderingContext2D, player: Player) => {
+		
+		const latencies = [];
+
 		const debuggableValues = [
 			['x', Math.floor(player.x)],
 			['y', Math.floor(player.y)],
 			['players', Object.keys(clientPlayers).length],
-			['latency', Date.now() - player.clientTime],
+			['latency', `${Date.now() - player.clientTime} ms`],
+			['feedpoints', clientFeedmap.length],
+			['score', player.radius - 20.0],
 		];
 
 		const fontSize = 24;
@@ -159,14 +160,16 @@ const GameCanvas: React.FC = () => {
 			)
 		});
 
-		Object.keys(clientPlayers).forEach((uid) => {
-			const clientPlayer = clientPlayers[uid];
-			drawCircle(context, {
-				...clientPlayer,
-				x: clientPlayer.x + xOffset,
-				y: clientPlayer.y + yOffset,
+		const clonedPlayers = clone(Object.values(clientPlayers))
+		clonedPlayers
+			.sort((a, b) => a.radius - b.radius)
+			.forEach((p) => {
+				drawCircle(context, {
+					...p,
+					x: p.x + xOffset,
+					y: p.y + yOffset,
+				});
 			});
-		});
 
 		drawDebugger(context, player);
 	}, [clientPlayers, clientUid, clientConfig, clientFeedmap]);
@@ -206,7 +209,7 @@ const GameCanvas: React.FC = () => {
 	}, [clientUid, clientConfig, moveX, moveY]);
 
 	useEffect(() => {
-		const interval = setInterval(updatePlayer, FPS_INTERVAL);
+		const interval = setInterval(updatePlayer, FPS_INTERVAL); 
 		return () => clearInterval(interval);
 	}, [updatePlayer]);
 
@@ -224,36 +227,84 @@ const GameCanvas: React.FC = () => {
 			}
 
 			if (data.action === 'sync') {
-				setClientPlayers(data.players);
-				setClientFeedmap(prev => data.feedmap || prev);
+				setClientPlayers(prev => {
+					prev[data.uid] = data.player;
+					if (data.eatenPlayer) {
+						delete prev[data.eatenPlayer];
+					}
+					return prev;
+				});
+				setClientFeedmap(prev => {
+					if (!data.eatenPoint) return prev;
+					let feedmap = prev.filter(item => item[0] != data.eatenPoint[0] && item[1] != data.eatenPoint[1]);
+					feedmap = feedmap.concat(data.addedPoint);
+					return feedmap;
+				});
 			}
 		};
+
+		ws.current.onclose = (event) => {
+			window.location.reload()
+		};
+
 
 		return () => {
 			ws.current?.close();
 		};
 	}, []);
 
-	useEffect(() => {
+	const updateMovement = useCallback(() => {
 		const canvas = canvasRef.current;
 		if (!canvas) return;
 
+		// Get the canvas dimensions and calculate movement offsets
+		const rect = canvas.getBoundingClientRect();
+
 		const handleMouseMove = (event: MouseEvent) => {
 			const rect = canvas.getBoundingClientRect();
+
+			// Calculate mouse position relative to the center of the canvas
 			const mouseX = event.clientX - rect.left - canvas.width / 2;
 			const mouseY = event.clientY - rect.top - canvas.height / 2;
-			setMoveX(Math.min(1, Math.max(-1, mouseX / canvas.width)));
-			setMoveY(Math.min(1, Math.max(-1, mouseY / canvas.height)));
+
+			// Calculate the magnitude (distance from the center)
+			const magnitude = Math.sqrt(mouseX ** 2 + mouseY ** 2);
+
+			// Normalize the direction vector
+			const directionX = magnitude === 0 ? 0 : mouseX / magnitude;
+			const directionY = magnitude === 0 ? 0 : mouseY / magnitude;
+
+			// Set a fixed speed
+			const speed = 1 / 10;
+
+			// Scale the direction by the speed
+			const _moveX = directionX * speed;
+			const _moveY = directionY * speed;
+
+			// Set the movement values
+			setMoveX(_moveX);
+			setMoveY(_moveY);
 		};
 
-		canvas.addEventListener('mousemove', handleMouseMove);
-		return () => canvas.removeEventListener('mousemove', handleMouseMove);
+		// Add the mousemove event listener
+		canvas.addEventListener("mousemove", handleMouseMove);
+
+		// Cleanup function to remove the event listener
+		return () => {
+			canvas.removeEventListener("mousemove", handleMouseMove);
+		};
 	}, []);
+
 
 	useEffect(() => {
 		const animationFrame = requestAnimationFrame(draw);
 		return () => cancelAnimationFrame(animationFrame);
 	}, [draw]);
+
+	useEffect(() => {
+		const animationFrame = requestAnimationFrame(updateMovement);
+		return () => cancelAnimationFrame(animationFrame);
+	}, [updateMovement]);
 
 	return <canvas ref={canvasRef} />;
 };

@@ -2,8 +2,9 @@ package main
 
 import (
 	"log"
-	"net/http"
+	"math"
 	"math/rand"
+	"net/http"
 	// "encoding/json"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 		Y:      rand.Float64() * float64(state.Config.MaxY),
 		Radius: 20,
 		Color:  RandomColor(),
-		Speed:  10,
+		Speed:  2,
 		Connection: conn,
 	}
 	state.mu.Lock()
@@ -89,13 +90,14 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 
 			for idx, point := range state.FeedMap {
 				if IsPointInCircle(player.X, player.Y, player.Radius, point[0], point[1]) {
-					player.Radius += 1
+					player.Radius += 0.5
 					state.FeedMap = append(state.FeedMap[:idx], state.FeedMap[idx+1:]...)
 					message["eatenPoint"] = point
 
-					addedPoint := GeneratePoints(1, state.Config.MaxX, state.Config.MaxY)
-					state.FeedMap = append(state.FeedMap, addedPoint[0])
-					message["addedPoint"] = addedPoint
+					addSize := math.Max(0.0, float64(state.Config.FeedMapSize - len(state.FeedMap)))
+					addedPoints := GeneratePoints(int(addSize), state.Config.MaxX, state.Config.MaxY)
+					state.FeedMap = append(state.FeedMap, addedPoints...)
+					message["addedPoints"] = addedPoints
 					break
 				}
 			}

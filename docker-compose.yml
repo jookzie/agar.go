@@ -7,6 +7,7 @@ services:
   client:
     build:
       context: ./client
+      dockerfile: Dockerfile.dev
     ports:
       - "80:80"
     logging:

@@ -18,7 +18,7 @@ interface Config {
 }
 
 const SECOND = 1000;
-const FPS = 240;
+const FPS = 500;
 const FPS_INTERVAL = Math.floor(SECOND / FPS);
 
 const GameCanvas: React.FC = () => {
@@ -57,7 +57,7 @@ const GameCanvas: React.FC = () => {
 		context.fillStyle = color || "black";
 		context.fill();
 
-		context.lineWidth = Math.PI;
+		context.lineWidth = 2 * Math.PI;
 		context.strokeStyle = darkenColor(color || "black", 30);
 		context.stroke();
 		context.lineWidth = 1;
@@ -65,7 +65,7 @@ const GameCanvas: React.FC = () => {
 
 	const drawFeedCircle = (context: CanvasRenderingContext2D, x: number, y: number, xOffset: number, yOffset: number) => {
 		context.beginPath();
-		context.arc(x + xOffset, y + yOffset, 10, 0, 2 * Math.PI, false);
+		context.arc(x + xOffset, y + yOffset, (x + y) % 3 + 10, 0, 2 * Math.PI, false);
 		context.fillStyle = '#' + (((x + y) * 1234567) & 0xFFFFFF).toString(16).padStart(6, '0')
 		context.fill();
 	};
@@ -115,13 +115,15 @@ const GameCanvas: React.FC = () => {
 		
 		const latencies = [];
 
+		const latency = Math.round((Date.now() - (player.clientTime || 0)) / 5) * 5
+
 		const debuggableValues = [
 			['x', Math.floor(player.x)],
 			['y', Math.floor(player.y)],
 			['players', Object.keys(clientPlayers).length],
-			['latency', `${Date.now() - (player.clientTime || 0)} ms`],
-			['feedpoints', clientFeedmap.length],
-			['score', player.radius - 20.0],
+			['latency', `${String(latency).padStart(2, '0')} ms`],
+			['feed points', clientFeedmap.length],
+			['score', Math.floor(player.radius * 10 - 200)],
 		];
 
 		const fontSize = 24;
@@ -214,7 +216,7 @@ const GameCanvas: React.FC = () => {
 	}, [updatePlayer]);
 
 	useEffect(() => {
-		ws.current = new WebSocket('ws://localhost:8080/ws');
+		ws.current = new WebSocket(import.meta.env.VITE_BACKEND_URL);
 
 		ws.current.onmessage = (event) => {
 			const data = JSON.parse(event.data);
@@ -234,10 +236,13 @@ const GameCanvas: React.FC = () => {
 					}
 					return prev;
 				});
-				setClientFeedmap((prev: Array<Array<number>>) => {
-					if (!data.eatenPoint) return prev;
-					let feedmap = prev.filter(item => item[0] != data.eatenPoint[0] && item[1] != data.eatenPoint[1]);
-					feedmap = feedmap.concat(data.addedPoint);
+				data.eatenPoint && setClientFeedmap((prev: Array<Array<number>>) => {
+					const idx = prev.findIndex(item => item[0] == data.eatenPoint[0] && item[1] == data.eatenPoint[1]);
+					if (idx == -1) throw Error("Eaten point was not found in feed map.")
+
+					let feedmap = structuredClone(prev);
+					feedmap.splice(idx, 1);
+					feedmap = [...feedmap, ...data.addedPoints || []];
 					return feedmap;
 				});
 			}
@@ -274,16 +279,12 @@ const GameCanvas: React.FC = () => {
 			const directionX = magnitude === 0 ? 0 : mouseX / magnitude;
 			const directionY = magnitude === 0 ? 0 : mouseY / magnitude;
 
-			// Set a fixed speed
-			const speed = 1 / 10;
-
-			// Scale the direction by the speed
-			const _moveX = directionX * speed;
-			const _moveY = directionY * speed;
+			const verifiedMoveX = Math.max(-1, Math.min(1, directionX));
+			const verifiedMoveY = Math.max(-1, Math.min(1, directionY));
 
 			// Set the movement values
-			setMoveX(_moveX);
-			setMoveY(_moveY);
+			setMoveX(verifiedMoveX);
+			setMoveY(verifiedMoveY);
 		};
 
 		// Add the mousemove event listener

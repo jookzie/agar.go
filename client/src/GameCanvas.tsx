@@ -26,7 +26,7 @@ const GameCanvas: React.FC = () => {
 	const [clientUid, setClientUid] = useState<string | null>(null);
 	const [clientConfig, setClientConfig] = useState<Config | null>(null);
 	const [clientPlayers, setClientPlayers] = useState<Record<string, Player>>({});
-	const [clientFeedmap, setClientFeedmap] = useState<Array<int, int>>([]);
+	const [clientFeedmap, setClientFeedmap] = useState<Array<Array<number>>>([]);
 	const [moveX, setMoveX] = useState(0);
 	const [moveY, setMoveY] = useState(0);
 
@@ -63,7 +63,7 @@ const GameCanvas: React.FC = () => {
 		context.lineWidth = 1;
 	};
 
-	const drawFeedCircle = (context: CanvasRenderingContext2D, x, y, xOffset, yOffset) => {
+	const drawFeedCircle = (context: CanvasRenderingContext2D, x: number, y: number, xOffset: number, yOffset: number) => {
 		context.beginPath();
 		context.arc(x + xOffset, y + yOffset, 10, 0, 2 * Math.PI, false);
 		context.fillStyle = '#' + (((x + y) * 1234567) & 0xFFFFFF).toString(16).padStart(6, '0')
@@ -119,7 +119,7 @@ const GameCanvas: React.FC = () => {
 			['x', Math.floor(player.x)],
 			['y', Math.floor(player.y)],
 			['players', Object.keys(clientPlayers).length],
-			['latency', `${Date.now() - player.clientTime} ms`],
+			['latency', `${Date.now() - (player.clientTime || 0)} ms`],
 			['feedpoints', clientFeedmap.length],
 			['score', player.radius - 20.0],
 		];
@@ -150,7 +150,7 @@ const GameCanvas: React.FC = () => {
 
 		drawGrid(context, player.x, player.y);
 
-		clientFeedmap.forEach((point: Array<int>) => {
+		clientFeedmap.forEach((point: Array<number>) => {
 			drawFeedCircle(
 				context,
 				point[0], 
@@ -234,7 +234,7 @@ const GameCanvas: React.FC = () => {
 					}
 					return prev;
 				});
-				setClientFeedmap(prev => {
+				setClientFeedmap((prev: Array<Array<number>>) => {
 					if (!data.eatenPoint) return prev;
 					let feedmap = prev.filter(item => item[0] != data.eatenPoint[0] && item[1] != data.eatenPoint[1]);
 					feedmap = feedmap.concat(data.addedPoint);

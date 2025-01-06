@@ -63,7 +63,7 @@ const GameCanvas: React.FC = () => {
 		context.stroke();
 
 		const text = name;
-		const coord = [canvasRef.current.width/2-12*text.length/2, canvasRef.current.height/2-30]
+		const coord = [canvasRef.current!.width/2-12*text.length/2, canvasRef.current!.height/2-30]
 		context.font = '25px Sans-serif';
 		context.strokeStyle = 'black';
 		context.lineWidth = 8;

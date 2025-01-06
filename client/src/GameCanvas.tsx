@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import clone from 'just-clone';
 
 interface Player {
+	name: string;
 	x: number;
 	y: number;
 	radius: number;
@@ -51,7 +52,7 @@ const GameCanvas: React.FC = () => {
 		return value;
 	};
 
-	const drawCircle = (context: CanvasRenderingContext2D, { x, y, radius, color }: Player) => {
+	const drawCircle = (context: CanvasRenderingContext2D, { x, y, radius, name, color }: Player) => {
 		context.beginPath();
 		context.arc(x, y, radius, 0, 2 * Math.PI, false);
 		context.fillStyle = color || "black";
@@ -60,6 +61,16 @@ const GameCanvas: React.FC = () => {
 		context.lineWidth = 2 * Math.PI;
 		context.strokeStyle = darkenColor(color || "black", 30);
 		context.stroke();
+
+		const text = name;
+		const coord = [canvasRef.current.width/2-12*text.length/2, canvasRef.current.height/2-30]
+		context.font = '25px Sans-serif';
+		context.strokeStyle = 'black';
+		context.lineWidth = 8;
+		context.strokeText(text, coord[0], coord[1]);
+		context.fillStyle = 'white';
+		context.fillText(text, coord[0], coord[1]);
+
 		context.lineWidth = 1;
 	};
 

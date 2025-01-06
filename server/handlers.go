@@ -29,6 +29,7 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 
 	uid := uuid.New().String()
 	player := &Player{
+		Name:	nicknames[rand.Intn(len(nicknames))],
 		X:      rand.Float64() * float64(state.Config.MaxX),
 		Y:      rand.Float64() * float64(state.Config.MaxY),
 		Radius: 20,
@@ -40,7 +41,7 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 	state.Players[uid] = player
 	state.mu.Unlock()
 
-	log.Println("Added player", uid)
+	log.Println("Added player", player.Name)
 
 	message := map[string]interface{}{
 		"action":  "join",

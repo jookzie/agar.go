@@ -260,6 +260,13 @@ const GameCanvas: React.FC = () => {
 					return feedmap;
 				});
 			}
+
+			if(data.action == "delete") {
+				setClientPlayers(prev => {
+					delete prev[data.uid];
+					return prev;
+				});
+			}
 		};
 
 		ws.current.onclose = (event) => {

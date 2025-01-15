@@ -41,7 +41,7 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 	state.Players[uid] = player
 	state.mu.Unlock()
 
-	log.Println("Added player", player.Name)
+	log.Println("Player joined", player.Name)
 
 	message := map[string]interface{}{
 		"action":  "join",
@@ -67,7 +67,12 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 			delete(state.Players, uid)
 			state.mu.Unlock()
 
-			log.Println("Removed player", player.Name)
+			message := map[string]interface{}{
+				"action":  "delete",
+				"uid": uid,
+			}
+			wss.BroadcastMessage(message)
+			log.Println("Player disconnected", player.Name)
 			break
 		}
 

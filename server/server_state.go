@@ -40,9 +40,9 @@ type ClientMessage struct {
 }
 
 var config ServerConfig = ServerConfig{
-	MaxX: 5000,
-	MaxY: 5000,
-	FeedMapSize: 1000,
+	MaxX: 2500,
+	MaxY: 2500,
+	FeedMapSize: 500,
 }
 
 var state = ServerState{

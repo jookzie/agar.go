@@ -67,7 +67,7 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 			delete(state.Players, uid)
 			state.mu.Unlock()
 
-			log.Println("Removed player", uid)
+			log.Println("Removed player", player.Name)
 			break
 		}
 
@@ -92,6 +92,7 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 			for idx, point := range state.FeedMap {
 				if IsPointInCircle(player.X, player.Y, player.Radius, point[0], point[1]) {
 					player.Radius += 0.5
+					player.Speed = 30 / player.Radius + 0.5
 					state.FeedMap = append(state.FeedMap[:idx], state.FeedMap[idx+1:]...)
 					message["eatenPoint"] = point
 
@@ -104,8 +105,9 @@ func handleConnections(wss *WebSocketServer, w http.ResponseWriter, r *http.Requ
 			}
 
 			for otherUid, other := range state.Players {
-				if otherUid != uid && IsCircleInCircle(player.X, player.Y, player.Radius, other.X, other.Y, other.Radius) {
+				if otherUid != uid && IsCircleInCircle(player.X, player.Y, player.Radius+10, other.X, other.Y, other.Radius) {
 					player.Radius += state.Players[otherUid].Radius - 20
+					player.Speed = 30 / player.Radius + 0.5
 					wss.RemoveClient(state.Players[otherUid].Connection)
 					delete(state.Players, otherUid)
 					message["eatenPlayer"] = otherUid

@@ -84,6 +84,40 @@ const GameCanvas: React.FC = () => {
 		context.fill();
 	};
 
+	const drawLeaderboard = (ctx: CanvasRenderingContext2D) => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
+		 // Sort players by radius in descending order
+		const clonedPlayers = clone(Object.values(clientPlayers))
+		const sortedPlayers = [...clonedPlayers].sort((a, b) => b.radius - a.radius);
+
+		// Draw the leaderboard box
+		const boxWidth = 200;
+		const boxHeight = sortedPlayers.length * 30 + 40; // Dynamic height based on players
+		const boxX = canvas.width - boxWidth - 10; // Top-right corner
+		const boxY = 10;
+
+		ctx.globalAlpha = 0.8; // Set opacity
+		ctx.fillStyle = "black";
+		ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+		ctx.globalAlpha = 1.0; // Reset opacity
+		ctx.fillStyle = "white";
+		ctx.font = "16px Arial";
+
+		// Draw the leaderboard title
+		const title = "Leaderboard";
+		const titleWidth = ctx.measureText(title).width;
+		const titleX = boxX + (boxWidth - titleWidth) / 2; // Center the title
+		ctx.fillText(title, titleX, boxY + 25);
+
+		// Draw player rankings
+		sortedPlayers.forEach((player, index) => {
+		  const text = `${index + 1}. ${player.name}`;
+		  ctx.fillText(text, boxX + 10, boxY + 50 + index * 30); // Adjust Y position for the title
+		});
+	};
+
 	function darkenColor(color: string, percent: number): string {
 		// Parse the red, green, and blue components from the color
 		const r = parseInt(color.slice(1, 3), 16);
@@ -187,7 +221,10 @@ const GameCanvas: React.FC = () => {
 				});
 			});
 
-		drawDebugger(context, player);
+		if (import.meta.env.DEV) {
+			drawDebugger(context, player)
+		}
+		drawLeaderboard(context);
 	}, [clientPlayers, clientUid, clientConfig, clientFeedmap]);
 
 	const updatePlayer = useCallback(() => {
